@@ -16,8 +16,6 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        // Initialize the capture session and movie file output
-        self.captureSession = [[AVCaptureSession alloc] init];
         self.movieFileOutput = [[AVCaptureMovieFileOutput alloc] init];
     }
     return self;
@@ -30,74 +28,70 @@
   self.webView.backgroundColor = [UIColor clearColor];
 }
 
-- (void) startCamera:(CDVInvokedUrlCommand*)command {
+- (void)startCamera:(CDVInvokedUrlCommand *)command {
+    CDVPluginResult *pluginResult;
 
-  CDVPluginResult *pluginResult;
-
-  if (self.sessionManager != nil) {
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera already started!"];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    return;
-  }
-
-  if (command.arguments.count > 3) {
-    CGFloat x = (CGFloat)[command.arguments[0] floatValue] + self.webView.frame.origin.x;
-    CGFloat y = (CGFloat)[command.arguments[1] floatValue] + self.webView.frame.origin.y;
-    CGFloat width = (CGFloat)[command.arguments[2] floatValue];
-    CGFloat height = (CGFloat)[command.arguments[3] floatValue];
-    NSString *defaultCamera = command.arguments[4];
-    BOOL tapToTakePicture = (BOOL)[command.arguments[5] boolValue];
-    BOOL dragEnabled = (BOOL)[command.arguments[6] boolValue];
-    BOOL toBack = (BOOL)[command.arguments[7] boolValue];
-    CGFloat alpha = (CGFloat)[command.arguments[8] floatValue];
-    BOOL tapToFocus = (BOOL) [command.arguments[9] boolValue];
-    BOOL disableExifHeaderStripping = (BOOL) [command.arguments[10] boolValue]; // ignore Android only
-    self.storeToFile = (BOOL) [command.arguments[11] boolValue];
-
-    // Create the session manager
-    self.sessionManager = [[CameraSessionManager alloc] init];
-
-    // render controller setup
-    self.cameraRenderController = [[CameraRenderController alloc] init];
-    self.cameraRenderController.dragEnabled = dragEnabled;
-    self.cameraRenderController.tapToTakePicture = tapToTakePicture;
-    self.cameraRenderController.tapToFocus = tapToFocus;
-    self.cameraRenderController.sessionManager = self.sessionManager;
-    self.cameraRenderController.view.frame = CGRectMake(x, y, width, height);
-    self.cameraRenderController.delegate = self;
-
-    [self.viewController addChildViewController:self.cameraRenderController];
-
-    if (toBack) {
-      // display the camera below the webview
-
-      // make transparent
-      self.webView.opaque = NO;
-      self.webView.backgroundColor = [UIColor clearColor];
-
-      self.webView.scrollView.opaque = NO;
-      self.webView.scrollView.backgroundColor = [UIColor clearColor];
-
-      [self.viewController.view insertSubview:self.cameraRenderController.view atIndex:0];
-      [self.webView.superview bringSubviewToFront:self.webView];
-    } else {
-      self.cameraRenderController.view.alpha = alpha;
-      [self.webView.superview insertSubview:self.cameraRenderController.view aboveSubview:self.webView];
+    if (self.sessionManager != nil) {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera already started!"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        return;
     }
 
-    // Setup session
-    self.sessionManager.delegate = self.cameraRenderController;
+    if (command.arguments.count > 3) {
+        CGFloat x = (CGFloat)[command.arguments[0] floatValue] + self.webView.frame.origin.x;
+        CGFloat y = (CGFloat)[command.arguments[1] floatValue] + self.webView.frame.origin.y;
+        CGFloat width = (CGFloat)[command.arguments[2] floatValue];
+        CGFloat height = (CGFloat)[command.arguments[3] floatValue];
+        NSString *defaultCamera = command.arguments[4];
+        BOOL tapToTakePicture = (BOOL)[command.arguments[5] boolValue];
+        BOOL dragEnabled = (BOOL)[command.arguments[6] boolValue];
+        BOOL toBack = (BOOL)[command.arguments[7] boolValue];
+        CGFloat alpha = (CGFloat)[command.arguments[8] floatValue];
+        BOOL tapToFocus = (BOOL) [command.arguments[9] boolValue];
+        BOOL disableExifHeaderStripping = (BOOL) [command.arguments[10] boolValue];
+        self.storeToFile = (BOOL) [command.arguments[11] boolValue];
 
-    [self.sessionManager setupSession:defaultCamera completion:^(BOOL started) {
+        // Create the session manager
+        self.sessionManager = [[CameraSessionManager alloc] init];
 
-      [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+        // render controller setup
+        self.cameraRenderController = [[CameraRenderController alloc] init];
+        self.cameraRenderController.dragEnabled = dragEnabled;
+        self.cameraRenderController.tapToTakePicture = tapToTakePicture;
+        self.cameraRenderController.tapToFocus = tapToFocus;
+        self.cameraRenderController.sessionManager = self.sessionManager;
+        self.cameraRenderController.view.frame = CGRectMake(x, y, width, height);
+        self.cameraRenderController.delegate = self;
 
-    }];
+        [self.viewController addChildViewController:self.cameraRenderController];
 
-  } else {
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid number of parameters"];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-  }
+        if (toBack) {
+            // display the camera below the webview
+
+            // make transparent
+            self.webView.opaque = NO;
+            self.webView.backgroundColor = [UIColor clearColor];
+
+            self.webView.scrollView.opaque = NO;
+            self.webView.scrollView.backgroundColor = [UIColor clearColor];
+
+            [self.viewController.view insertSubview:self.cameraRenderController.view atIndex:0];
+            [self.webView.superview bringSubviewToFront:self.webView];
+        } else {
+            self.cameraRenderController.view.alpha = alpha;
+            [self.webView.superview insertSubview:self.cameraRenderController.view aboveSubview:self.webView];
+        }
+
+        // Setup session
+        self.sessionManager.delegate = self.cameraRenderController;
+
+        [self.sessionManager setupSession:defaultCamera completion:^(BOOL started) {
+            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+        }];
+    } else {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid number of parameters"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
 }
 
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
@@ -871,84 +865,110 @@
 }
 
 - (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
-    // Configure video input
-    AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    if (!videoDevice) {
-        [self onStartRecordVideoError:@"No video device available"];
-        return;
-    }
+    NSLog(@"Attempting to start recording");
 
-    NSError *videoError = nil;
-    AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&videoError];
-    if (videoError) {
-        [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing video input: %@", videoError.localizedDescription]];
-        return;
-    }
+    // Use sessionManager instead of captureSession
+    AVCaptureSession *captureSession = self.sessionManager.session;
 
-    if ([self.captureSession canAddInput:videoInput]) {
-        [self.captureSession addInput:videoInput];
+    // Check if the session is already running to avoid re-initialization
+    if ([captureSession isRunning]) {
+        NSLog(@"Capture session already running, reusing existing session.");
     } else {
-        [self onStartRecordVideoError:@"Cannot add video input"];
-        return;
-    }
-
-    // Configure audio input
-    AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
-    if (!audioDevice) {
-        [self onStartRecordVideoError:@"No audio device available"];
-        return;
-    }
-
-    NSError *audioError = nil;
-    AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&audioError];
-    if (audioError) {
-        [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing audio input: %@", audioError.localizedDescription]];
-        return;
-    }
-
-    if ([self.captureSession canAddInput:audioInput]) {
-        [self.captureSession addInput:audioInput];
-    } else {
-        [self onStartRecordVideoError:@"Cannot add audio input"];
-        return;
-    }
-
-    // Configure movie file output
-    if ([self.captureSession canAddOutput:self.movieFileOutput]) {
-        [self.captureSession addOutput:self.movieFileOutput];
-    } else {
-        [self onStartRecordVideoError:@"Cannot add movie file output"];
-        return;
-    }
-
-    // Set video quality
-    if (quality == 0) {
-        self.captureSession.sessionPreset = AVCaptureSessionPresetLow;
-    } else if (quality == 1) {
-        self.captureSession.sessionPreset = AVCaptureSessionPresetMedium;
-    } else {
-        self.captureSession.sessionPreset = AVCaptureSessionPresetHigh;
-    }
-
-    // Set flash mode
-    if (withFlash) {
-        if ([videoDevice hasTorch] && [videoDevice isTorchModeSupported:AVCaptureTorchModeOn]) {
-            NSError *torchError = nil;
-            [videoDevice lockForConfiguration:&torchError];
-            if (torchError) {
-                [self onStartRecordVideoError:[NSString stringWithFormat:@"Error configuring torch: %@", torchError.localizedDescription]];
-                return;
-            }
-            [videoDevice setTorchMode:AVCaptureTorchModeOn];
-            [videoDevice unlockForConfiguration];
-        } else {
-            [self onStartRecordVideoError:@"Torch mode not supported"];
+        // Configure video input
+        AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        if (!videoDevice) {
+            [self onStartRecordVideoError:@"No video device available"];
             return;
         }
-    }
 
-    // Start session
-    [self.captureSession startRunning];
+        NSError *videoError = nil;
+        AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&videoError];
+        if (videoError) {
+            [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing video input: %@", videoError.localizedDescription]];
+            return;
+        }
+
+        if (![captureSession.inputs containsObject:videoInput]) {
+            if ([captureSession canAddInput:videoInput]) {
+                NSLog(@"Adding video input");
+                [captureSession addInput:videoInput];
+            } else {
+                [self onStartRecordVideoError:@"Cannot add video input"];
+                return;
+            }
+        }
+
+        // Configure audio input
+        AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+        if (!audioDevice) {
+            [self onStartRecordVideoError:@"No audio device available"];
+            return;
+        }
+
+        NSError *audioError = nil;
+        AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&audioError];
+        if (audioError) {
+            [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing audio input: %@", audioError.localizedDescription]];
+            return;
+        }
+
+        if (![captureSession.inputs containsObject:audioInput]) {
+            if ([captureSession canAddInput:audioInput]) {
+                NSLog(@"Adding audio input");
+                [captureSession addInput:audioInput];
+            } else {
+                [self onStartRecordVideoError:@"Cannot add audio input"];
+                return;
+            }
+        }
+
+        // Configure movie file output
+        if (![captureSession.outputs containsObject:self.movieFileOutput]) {
+            if ([captureSession canAddOutput:self.movieFileOutput]) {
+                NSLog(@"Adding movie file output");
+                [captureSession addOutput:self.movieFileOutput];
+            } else {
+                [self onStartRecordVideoError:@"Cannot add movie file output"];
+                return;
+            }
+        }
+
+        // Set video quality
+        switch (quality) {
+            case 0:
+                captureSession.sessionPreset = AVCaptureSessionPresetLow;
+                break;
+            case 1:
+                captureSession.sessionPreset = AVCaptureSessionPresetMedium;
+                break;
+            case 2:
+                captureSession.sessionPreset = AVCaptureSessionPresetHigh;
+                break;
+            default:
+                captureSession.sessionPreset = AVCaptureSessionPresetHigh;
+                break;
+        }
+
+        // Set flash mode
+        if (withFlash) {
+            if ([videoDevice hasTorch] && [videoDevice isTorchModeSupported:AVCaptureTorchModeOn]) {
+                NSError *torchError = nil;
+                [videoDevice lockForConfiguration:&torchError];
+                if (torchError) {
+                    [self onStartRecordVideoError:[NSString stringWithFormat:@"Error configuring torch: %@", torchError.localizedDescription]];
+                    return;
+                }
+                [videoDevice setTorchMode:AVCaptureTorchModeOn];
+                [videoDevice unlockForConfiguration];
+            } else {
+                [self onStartRecordVideoError:@"Torch mode not supported"];
+                return;
+            }
+        }
+
+        NSLog(@"Starting capture session");
+        [captureSession startRunning];
+    }
 
     // Start recording to file
     NSURL *outputFileURL = [NSURL fileURLWithPath:filePath];
@@ -1036,6 +1056,8 @@
     }
 }
 
-
+- (void)captureOutput:(nonnull AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(nonnull NSURL *)outputFileURL fromConnections:(nonnull NSArray<AVCaptureConnection *> *)connections error:(nullable NSError *)error { 
+  
+}
 
 @end

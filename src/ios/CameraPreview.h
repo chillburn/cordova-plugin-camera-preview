@@ -52,16 +52,17 @@
 - (BOOL)hasView:(CDVInvokedUrlCommand *)command;
 - (NSString *)getFilePath:(NSString *)filename;
 
-@property (nonatomic) CameraSessionManager *sessionManager;
-@property (nonatomic) CameraRenderController *cameraRenderController;
+@property (strong, nonatomic) CameraSessionManager *sessionManager;
+@property (strong, nonatomic) CameraRenderController *cameraRenderController;
 @property (nonatomic) NSString *onPictureTakenHandlerId;
-@property (nonatomic) BOOL storeToFile;
-
+@property (assign, nonatomic) BOOL storeToFile;
+@property (strong, nonatomic) AVCaptureMovieFileOutput *movieFileOutput;
 @property (strong, nonatomic) CDVInvokedUrlCommand *startRecordVideoCallbackContext;
 @property (strong, nonatomic) CDVInvokedUrlCommand *stopRecordVideoCallbackContext;
 @property (strong, nonatomic) NSString *videoFilePath;
+
+
 @property (strong, nonatomic) AVCaptureSession *captureSession;
-@property (strong, nonatomic) AVCaptureMovieFileOutput *movieFileOutput;
 
 
 
