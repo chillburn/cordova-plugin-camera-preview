@@ -1,7 +1,6 @@
 #import <Cordova/CDV.h>
 #import <Cordova/CDVPlugin.h>
 #import <Cordova/CDVInvokedUrlCommand.h>
-
 #import "CameraSessionManager.h"
 #import "CameraRenderController.h"
 
@@ -40,7 +39,6 @@
 
 - (void) invokeTakePicture:(CGFloat) width withHeight:(CGFloat) height withQuality:(CGFloat) quality;
 - (void) invokeTakePicture;
-
 - (void) invokeTapToFocus:(CGPoint) point;
 
 - (void)startRecordVideo:(CDVInvokedUrlCommand *)command;
@@ -60,10 +58,5 @@
 @property (strong, nonatomic) CDVInvokedUrlCommand *startRecordVideoCallbackContext;
 @property (strong, nonatomic) CDVInvokedUrlCommand *stopRecordVideoCallbackContext;
 @property (strong, nonatomic) NSString *videoFilePath;
-
-
-@property (strong, nonatomic) AVCaptureSession *captureSession;
-
-
 
 @end

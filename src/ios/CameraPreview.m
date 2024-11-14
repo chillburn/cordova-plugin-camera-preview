@@ -94,6 +94,7 @@
     }
 }
 
+
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
     NSLog(@"stopCamera");
     CDVPluginResult *pluginResult;
@@ -991,7 +992,9 @@
 }
 
 - (void)stopRecordVideo:(CDVInvokedUrlCommand *)command {
+    NSLog(@"CameraPreview stopRecordVideo:");
     if (![self hasView:command]) {
+      NSLog(@"CameraPreview stopRecordVideo hasView:");
         return;
     }
 
@@ -1003,17 +1006,26 @@
 }
 
 - (void)stopRecord {
+  NSLog(@"CameraPreview stopRecord:");
+
     [self.movieFileOutput stopRecording];
-    [self.captureSession stopRunning];
+    
+    // Use the sessionManager to stop the capture session
+    if (self.sessionManager && self.sessionManager.session) {
+        [self.sessionManager.session stopRunning];
+    }
 }
 
-- (void)onStopRecordVideo:(NSString *)file {
-    NSLog(@"onStopRecordVideo success");
 
-    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:file];
+- (void)onStopRecordVideo:(NSString *)filePath {
+    NSLog(@"onStopRecordVideo success");
+    NSLog(@"Video file path: %@", filePath);
+
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:filePath];
     [result setKeepCallbackAsBool:YES];
     [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
 }
+
 
 - (void)onStopRecordVideoError:(NSString *)err {
     NSLog(@"onStopRecordVideo error: %@", err);
