@@ -43,9 +43,26 @@
 
 - (void) invokeTapToFocus:(CGPoint) point;
 
+- (void)startRecordVideo:(CDVInvokedUrlCommand *)command;
+- (void)onStartRecordVideo;
+- (void)onStartRecordVideoError:(NSString *)message;
+- (void)stopRecordVideo:(CDVInvokedUrlCommand *)command;
+- (void)onStopRecordVideo:(NSString *)file;
+- (void)onStopRecordVideoError:(NSString *)err;
+- (BOOL)hasView:(CDVInvokedUrlCommand *)command;
+- (NSString *)getFilePath:(NSString *)filename;
+
 @property (nonatomic) CameraSessionManager *sessionManager;
 @property (nonatomic) CameraRenderController *cameraRenderController;
 @property (nonatomic) NSString *onPictureTakenHandlerId;
 @property (nonatomic) BOOL storeToFile;
+
+@property (strong, nonatomic) CDVInvokedUrlCommand *startRecordVideoCallbackContext;
+@property (strong, nonatomic) CDVInvokedUrlCommand *stopRecordVideoCallbackContext;
+@property (strong, nonatomic) NSString *videoFilePath;
+@property (strong, nonatomic) AVCaptureSession *captureSession;
+@property (strong, nonatomic) AVCaptureMovieFileOutput *movieFileOutput;
+
+
 
 @end

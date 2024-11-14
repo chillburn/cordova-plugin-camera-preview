@@ -2,11 +2,27 @@
 #import <Cordova/CDVPlugin.h>
 #import <Cordova/CDVInvokedUrlCommand.h>
 #import <GLKit/GLKit.h>
+#import <AVFoundation/AVFoundation.h>
 #import "CameraPreview.h"
 
 #define TMP_IMAGE_PREFIX @"cpcp_capture_"
 
+@interface CameraPreview () <AVCaptureFileOutputRecordingDelegate>
+@end
+
 @implementation CameraPreview
+
+//video
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        // Initialize the capture session and movie file output
+        self.captureSession = [[AVCaptureSession alloc] init];
+        self.movieFileOutput = [[AVCaptureMovieFileOutput alloc] init];
+    }
+    return self;
+}
+
 
 -(void) pluginInitialize{
   // start as transparent
@@ -793,5 +809,218 @@
 
     return filePath;
 }
+
+//video
+- (void)startRecordVideo:(CDVInvokedUrlCommand *)command {
+    NSString *camera = [command.arguments objectAtIndex:0];
+    int width = [[command.arguments objectAtIndex:1] intValue];
+    int height = [[command.arguments objectAtIndex:2] intValue];
+    int quality = [[command.arguments objectAtIndex:3] intValue];
+    BOOL withFlash = [[command.arguments objectAtIndex:4] boolValue];
+    
+    if (![self hasView:command]) {
+        return;
+    }
+
+    self.videoFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"videoTmp"];
+    self.startRecordVideoCallbackContext = command;
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self startRecord:[self getFilePath:@"videoTmp"] camera:camera width:width height:height quality:quality withFlash:withFlash];
+    });
+}
+
+- (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
+    // Check and request camera and microphone permissions
+    AVAuthorizationStatus videoAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    AVAuthorizationStatus audioAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+    
+    if (videoAuthStatus == AVAuthorizationStatusDenied || audioAuthStatus == AVAuthorizationStatusDenied) {
+        [self onStartRecordVideoError:@"Camera or microphone access denied"];
+        return;
+    }
+    
+    if (videoAuthStatus == AVAuthorizationStatusNotDetermined || audioAuthStatus == AVAuthorizationStatusNotDetermined) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+            if (!granted) {
+                [self onStartRecordVideoError:@"Camera access not granted"];
+                return;
+            }
+        }];
+        
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+            if (!granted) {
+                [self onStartRecordVideoError:@"Microphone access not granted"];
+                return;
+            }
+        }];
+    }
+
+    // Configure video input
+    AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    if (!videoDevice) {
+        [self onStartRecordVideoError:@"No video device available"];
+        return;
+    }
+    
+    NSError *videoError = nil;
+    AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&videoError];
+    if (videoError) {
+        [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing video input: %@", videoError.localizedDescription]];
+        return;
+    }
+
+    if ([self.captureSession canAddInput:videoInput]) {
+        [self.captureSession addInput:videoInput];
+    } else {
+        [self onStartRecordVideoError:@"Cannot add video input"];
+        return;
+    }
+
+    // Configure audio input
+    AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+    if (!audioDevice) {
+        [self onStartRecordVideoError:@"No audio device available"];
+        return;
+    }
+    
+    NSError *audioError = nil;
+    AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&audioError];
+    if (audioError) {
+        [self onStartRecordVideoError:[NSString stringWithFormat:@"Error initializing audio input: %@", audioError.localizedDescription]];
+        return;
+    }
+
+    if ([self.captureSession canAddInput:audioInput]) {
+        [self.captureSession addInput:audioInput];
+    } else {
+        [self onStartRecordVideoError:@"Cannot add audio input"];
+        return;
+    }
+
+    // Configure movie file output
+    if ([self.captureSession canAddOutput:self.movieFileOutput]) {
+        [self.captureSession addOutput:self.movieFileOutput];
+    } else {
+        [self onStartRecordVideoError:@"Cannot add movie file output"];
+        return;
+    }
+
+    // Set video quality
+    if (quality == 0) {
+        self.captureSession.sessionPreset = AVCaptureSessionPresetLow;
+    } else if (quality == 1) {
+        self.captureSession.sessionPreset = AVCaptureSessionPresetMedium;
+    } else {
+        self.captureSession.sessionPreset = AVCaptureSessionPresetHigh;
+    }
+
+    // Set flash mode
+    if (withFlash) {
+        if ([videoDevice hasTorch] && [videoDevice isTorchModeSupported:AVCaptureTorchModeOn]) {
+            NSError *torchError = nil;
+            [videoDevice lockForConfiguration:&torchError];
+            if (torchError) {
+                [self onStartRecordVideoError:[NSString stringWithFormat:@"Error configuring torch: %@", torchError.localizedDescription]];
+                return;
+            }
+            [videoDevice setTorchMode:AVCaptureTorchModeOn];
+            [videoDevice unlockForConfiguration];
+        } else {
+            [self onStartRecordVideoError:@"Torch mode not supported"];
+            return;
+        }
+    }
+
+    // Start session
+    [self.captureSession startRunning];
+
+    // Start recording to file
+    NSURL *outputFileURL = [NSURL fileURLWithPath:filePath];
+    [self.movieFileOutput startRecordingToOutputFileURL:outputFileURL recordingDelegate:self];
+}
+
+- (void)onStartRecordVideo {
+    NSLog(@"onStartRecordVideo started");
+
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [pluginResult setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.startRecordVideoCallbackContext.callbackId];
+}
+
+- (void)onStartRecordVideoError:(NSString *)message {
+    NSLog(@"CameraPreview onStartRecordVideo: %@", message);
+
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:message];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.startRecordVideoCallbackContext.callbackId];
+}
+
+- (void)stopRecordVideo:(CDVInvokedUrlCommand *)command {
+    if (![self hasView:command]) {
+        return;
+    }
+
+    self.stopRecordVideoCallbackContext = command;
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self stopRecord];
+    });
+}
+
+- (void)stopRecord {
+    [self.movieFileOutput stopRecording];
+    [self.captureSession stopRunning];
+}
+
+- (void)onStopRecordVideo:(NSString *)file {
+    NSLog(@"onStopRecordVideo success");
+
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:file];
+    [result setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
+}
+
+- (void)onStopRecordVideoError:(NSString *)err {
+    NSLog(@"onStopRecordVideo error: %@", err);
+
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:err];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.stopRecordVideoCallbackContext.callbackId];
+}
+
+- (BOOL)hasView:(CDVInvokedUrlCommand *)command {
+    // Implement your view checking logic here
+    return YES;
+}
+
+// Implement the getFilePath method
+- (NSString *)getFilePath:(NSString *)filename {
+    NSString *fileName = filename;
+    int i = 1;
+
+    while ([[NSFileManager defaultManager] fileExistsAtPath:[self.videoFilePath stringByAppendingPathComponent:[fileName stringByAppendingString:@".mp4"]]]) {
+        fileName = [NSString stringWithFormat:@"%@_%d", filename, i];
+        i++;
+    }
+
+    return [self.videoFilePath stringByAppendingPathComponent:[fileName stringByAppendingString:@".mp4"]];
+}
+
+// Implement the required AVCaptureFileOutputRecordingDelegate methods
+- (void)fileOutput:(AVCaptureFileOutput *)output didStartRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray<AVCaptureConnection *> *)connections {
+    // Handle the event when recording starts
+    NSLog(@"Started recording to file: %@", fileURL);
+}
+
+- (void)fileOutput:(AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray<AVCaptureConnection *> *)connections error:(NSError *)error {
+    if (error) {
+        NSLog(@"Error recording to file: %@", error.localizedDescription);
+        [self onStopRecordVideoError:error.localizedDescription];
+    } else {
+        NSLog(@"Finished recording to file: %@", outputFileURL.path);
+        [self onStopRecordVideo:outputFileURL.path];
+    }
+}
+
+
 
 @end
