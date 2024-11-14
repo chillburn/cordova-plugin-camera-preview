@@ -811,58 +811,73 @@
 }
 
 //video
-- (void)startRecordVideo:(CDVInvokedUrlCommand *)command {
-    NSString *camera = [command.arguments objectAtIndex:0];
-    int width = [[command.arguments objectAtIndex:1] intValue];
-    int height = [[command.arguments objectAtIndex:2] intValue];
-    int quality = [[command.arguments objectAtIndex:3] intValue];
-    BOOL withFlash = [[command.arguments objectAtIndex:4] boolValue];
-    
-    if (![self hasView:command]) {
-        return;
+- (void)requestPermissionsWithCompletion:(void (^)(BOOL granted))completion {
+    AVAuthorizationStatus videoAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    AVAuthorizationStatus audioAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+
+    dispatch_group_t group = dispatch_group_create();
+
+    __block BOOL permissionsGranted = YES;
+
+    if (videoAuthStatus == AVAuthorizationStatusNotDetermined) {
+        dispatch_group_enter(group);
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+            if (!granted) {
+                permissionsGranted = NO;
+            }
+            dispatch_group_leave(group);
+        }];
     }
 
-    self.videoFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"videoTmp"];
-    self.startRecordVideoCallbackContext = command;
+    if (audioAuthStatus == AVAuthorizationStatusNotDetermined) {
+        dispatch_group_enter(group);
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+            if (!granted) {
+                permissionsGranted = NO;
+            }
+            dispatch_group_leave(group);
+        }];
+    }
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        [self startRecord:[self getFilePath:@"videoTmp"] camera:camera width:width height:height quality:quality withFlash:withFlash];
+    dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+        completion(permissionsGranted);
     });
 }
 
-- (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
-    // Check and request camera and microphone permissions
-    AVAuthorizationStatus videoAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
-    AVAuthorizationStatus audioAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
-    
-    if (videoAuthStatus == AVAuthorizationStatusDenied || audioAuthStatus == AVAuthorizationStatusDenied) {
-        [self onStartRecordVideoError:@"Camera or microphone access denied"];
-        return;
-    }
-    
-    if (videoAuthStatus == AVAuthorizationStatusNotDetermined || audioAuthStatus == AVAuthorizationStatusNotDetermined) {
-        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
-            if (!granted) {
-                [self onStartRecordVideoError:@"Camera access not granted"];
-                return;
-            }
-        }];
-        
-        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
-            if (!granted) {
-                [self onStartRecordVideoError:@"Microphone access not granted"];
-                return;
-            }
-        }];
-    }
+- (void)startRecordVideo:(CDVInvokedUrlCommand *)command {
+    [self requestPermissionsWithCompletion:^(BOOL granted) {
+        if (!granted) {
+            [self onStartRecordVideoError:@"Permissions not granted"];
+            return;
+        }
 
+        NSString *camera = [command.arguments objectAtIndex:0];
+        int width = [[command.arguments objectAtIndex:1] intValue];
+        int height = [[command.arguments objectAtIndex:2] intValue];
+        int quality = [[command.arguments objectAtIndex:3] intValue];
+        BOOL withFlash = [[command.arguments objectAtIndex:4] boolValue];
+
+        if (![self hasView:command]) {
+            return;
+        }
+
+        self.videoFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"videoTmp"];
+        self.startRecordVideoCallbackContext = command;
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [self startRecord:[self getFilePath:@"videoTmp"] camera:camera width:width height:height quality:quality withFlash:withFlash];
+        });
+    }];
+}
+
+- (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
     // Configure video input
     AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     if (!videoDevice) {
         [self onStartRecordVideoError:@"No video device available"];
         return;
     }
-    
+
     NSError *videoError = nil;
     AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&videoError];
     if (videoError) {
@@ -883,7 +898,7 @@
         [self onStartRecordVideoError:@"No audio device available"];
         return;
     }
-    
+
     NSError *audioError = nil;
     AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&audioError];
     if (audioError) {
