@@ -10,6 +10,7 @@
 @interface CameraPreview () <AVCaptureFileOutputRecordingDelegate>
 @end
 
+
 @implementation CameraPreview
 
 //video
@@ -93,7 +94,6 @@
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
 }
-
 
 - (void) stopCamera:(CDVInvokedUrlCommand*)command {
     NSLog(@"stopCamera");
@@ -865,13 +865,13 @@
     }];
 }
 
+
+// Ensure the delegate is set properly
 - (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
     NSLog(@"Attempting to start recording");
 
-    // Use sessionManager instead of captureSession
     AVCaptureSession *captureSession = self.sessionManager.session;
 
-    // Check if the session is already running to avoid re-initialization
     if ([captureSession isRunning]) {
         NSLog(@"Capture session already running, reusing existing session.");
     } else {
@@ -976,6 +976,8 @@
     [self.movieFileOutput startRecordingToOutputFileURL:outputFileURL recordingDelegate:self];
 }
 
+
+
 - (void)onStartRecordVideo {
     NSLog(@"onStartRecordVideo started");
 
@@ -994,7 +996,7 @@
 - (void)stopRecordVideo:(CDVInvokedUrlCommand *)command {
     NSLog(@"CameraPreview stopRecordVideo:");
     if (![self hasView:command]) {
-      NSLog(@"CameraPreview stopRecordVideo hasView:");
+        NSLog(@"CameraPreview stopRecordVideo hasView:");
         return;
     }
 
@@ -1005,14 +1007,23 @@
     });
 }
 
-- (void)stopRecord {
-  NSLog(@"CameraPreview stopRecord:");
 
+
+- (void)stopRecord {
+    NSLog(@"CameraPreview stopRecord:");
     [self.movieFileOutput stopRecording];
-    
-    // Use the sessionManager to stop the capture session
+    NSLog(@"CameraPreview stopRecord: after stop recording");
+}
+
+
+
+- (void)stopSession {
+    NSLog(@"CameraPreview stopSession:");
+    // Use the sessionManager to stop the session
     if (self.sessionManager && self.sessionManager.session) {
+        NSLog(@"CameraPreview stopSession: sessionManager.session");
         [self.sessionManager.session stopRunning];
+        NSLog(@"CameraPreview stopSession: sessionManager.session stopRunning");
     }
 }
 
@@ -1022,7 +1033,7 @@
     NSLog(@"Video file path: %@", filePath);
 
     CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:filePath];
-    [result setKeepCallbackAsBool:YES];
+    [result setKeepCallbackAsBool:NO];
     [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
 }
 
@@ -1033,6 +1044,8 @@
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:err];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:self.stopRecordVideoCallbackContext.callbackId];
 }
+
+
 
 - (BOOL)hasView:(CDVInvokedUrlCommand *)command {
     // Implement your view checking logic here
@@ -1053,11 +1066,6 @@
 }
 
 // Implement the required AVCaptureFileOutputRecordingDelegate methods
-- (void)fileOutput:(AVCaptureFileOutput *)output didStartRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray<AVCaptureConnection *> *)connections {
-    // Handle the event when recording starts
-    NSLog(@"Started recording to file: %@", fileURL);
-}
-
 - (void)fileOutput:(AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray<AVCaptureConnection *> *)connections error:(NSError *)error {
     if (error) {
         NSLog(@"Error recording to file: %@", error.localizedDescription);
@@ -1068,8 +1076,27 @@
     }
 }
 
-- (void)captureOutput:(nonnull AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(nonnull NSURL *)outputFileURL fromConnections:(nonnull NSArray<AVCaptureConnection *> *)connections error:(nullable NSError *)error { 
-  
+// Ensure this method is called after recording stops
+- (void)captureOutput:(AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray<AVCaptureConnection *> *)connections error:(NSError *)error {
+    NSLog(@"captureOutput: didFinishRecordingToOutputFileAtURL:");
+    if (error) {
+        NSLog(@"Error recording to file: %@", error.localizedDescription);
+        [self onStopRecordVideoError:error.localizedDescription];
+    } else {
+        NSLog(@"Finished recording to file: %@", outputFileURL.path);
+        [self onStopRecordVideo:outputFileURL.path];
+    }
+
+    // Ensure the session stops after recording finishes
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self stopSession];
+    });
 }
+
+
+
+
+
+
 
 @end
