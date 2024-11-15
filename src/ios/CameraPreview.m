@@ -888,14 +888,31 @@
 - (void)startRecord:(NSString *)filePath camera:(NSString *)camera width:(int)width height:(int)height quality:(int)quality withFlash:(BOOL)withFlash {
     NSLog(@"Attempting to start recording");
 
-    // Check permissions
+    // Check and request permissions
     AVAuthorizationStatus cameraAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     AVAuthorizationStatus microphoneAuthStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
 
-    if (cameraAuthStatus != AVAuthorizationStatusAuthorized || microphoneAuthStatus != AVAuthorizationStatusAuthorized) {
-        NSLog(@"Camera or microphone access not authorized");
-        [self onStartRecordVideoError:@"Camera or microphone access not authorized"];
-        return;
+    if (cameraAuthStatus != AVAuthorizationStatusAuthorized) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+            if (!granted) {
+                NSLog(@"Camera access not granted");
+            }
+        }];
+    }
+
+    if (microphoneAuthStatus != AVAuthorizationStatusAuthorized) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+            if (!granted) {
+                NSLog(@"Microphone access not granted");
+            }
+        }];
+    }
+
+    // Configure audio session
+    NSError *audioSessionError = nil;
+    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionAllowBluetooth error:&audioSessionError];
+    if (audioSessionError) {
+        NSLog(@"Error setting audio session category: %@", audioSessionError.localizedDescription);
     }
 
     // Ensure session is initialized
@@ -1022,26 +1039,21 @@
     NSLog(@"Starting capture session");
     [captureSession startRunning];
 
-    // Ensure directory exists and is writable
-    NSString *directory = [filePath stringByDeletingLastPathComponent];
-    BOOL isDir;
-    if (![[NSFileManager defaultManager] fileExistsAtPath:directory isDirectory:&isDir] || !isDir) {
+    // Use Documents directory
+    NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *videoDirectory = [documentsDirectory stringByAppendingPathComponent:@"videoTmp"];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:videoDirectory]) {
         NSError *directoryError = nil;
-        [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:&directoryError];
+        [[NSFileManager defaultManager] createDirectoryAtPath:videoDirectory withIntermediateDirectories:YES attributes:nil error:&directoryError];
         if (directoryError) {
             [self onStartRecordVideoError:[NSString stringWithFormat:@"Error creating directory: %@", directoryError.localizedDescription]];
             return;
         }
     }
 
-    // Ensure file path is writable
-    if (![[NSFileManager defaultManager] isWritableFileAtPath:directory]) {
-        [self onStartRecordVideoError:@"Directory is not writable"];
-        return;
-    }
-
-    NSURL *outputFileURL = [NSURL fileURLWithPath:filePath];
-
+    // Start recording to file
+    NSString *videoFilePath = [videoDirectory stringByAppendingPathComponent:@"videoTmp.mov"];
+    NSURL *outputFileURL = [NSURL fileURLWithPath:videoFilePath];
     self.stopRecordVideoCallbackContext = nil;
     NSLog(@"Movie file output state before recording: %@", self.movieFileOutput.isRecording ? @"Recording" : @"Not recording");
     [self.movieFileOutput startRecordingToOutputFileURL:outputFileURL recordingDelegate:self];
@@ -1085,7 +1097,6 @@
     }
 }
 
-
 - (void)stopRecord {
     NSLog(@"CameraPreview stopRecord:");
     [self.movieFileOutput stopRecording];
@@ -1101,6 +1112,7 @@
         NSLog(@"CameraPreview stopSession: sessionManager.session stopRunning");
     }
 }
+
 
 - (void)onStopRecordVideo:(NSString *)filePath {
     NSLog(@"onStopRecordVideo success");
