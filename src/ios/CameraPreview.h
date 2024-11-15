@@ -2,6 +2,7 @@
 #import <Cordova/CDVPlugin.h>
 #import <Cordova/CDVInvokedUrlCommand.h>
 #import <AVFoundation/AVFoundation.h>
+#import <UIKit/UIKit.h>
 #import "CameraSessionManager.h"
 #import "CameraRenderController.h"
 
@@ -46,8 +47,9 @@
 - (void)onStartRecordVideo;
 - (void)onStartRecordVideoError:(NSString *)message;
 - (void)stopRecordVideo:(CDVInvokedUrlCommand *)command;
+- (void)fileOutput:(AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray *)connections error:(NSError *)error;
 - (void)onStopRecordVideo:(NSString *)filePath;
-- (void)onStopRecordVideoError:(NSString *)err;
+- (void)onStopRecordVideoError:(NSString *)errorMessage;
 - (BOOL)hasView:(CDVInvokedUrlCommand *)command;
 - (NSString *)getFilePath:(NSString *)filename;
 
