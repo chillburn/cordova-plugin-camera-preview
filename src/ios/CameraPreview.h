@@ -46,7 +46,7 @@
 - (void)startRecordVideo:(CDVInvokedUrlCommand *)command;
 - (void)onStartRecordVideo;
 - (void)onStartRecordVideoError:(NSString *)message;
-- (void)stopRecordVideo:(CDVInvokedUrlCommand *)command;
+- (void)stopRecordVideo:(CDVInvokedUrlCommand*)command;
 - (void)fileOutput:(AVCaptureFileOutput *)output didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray *)connections error:(NSError *)error;
 - (void)onStopRecordVideo:(NSString *)filePath;
 - (void)onStopRecordVideoError:(NSString *)errorMessage;
