@@ -1000,6 +1000,16 @@
         }
     }
 
+    // Force video orientation to portrait
+    AVCaptureConnection *videoConnection = [self.movieFileOutput connectionWithMediaType:AVMediaTypeVideo];
+    if (videoConnection.isVideoOrientationSupported) {
+        videoConnection.videoOrientation = AVCaptureVideoOrientationPortrait;
+        // Adjust video stabilization mode if supported
+        if (videoConnection.isVideoStabilizationSupported) {
+            videoConnection.preferredVideoStabilizationMode = AVCaptureVideoStabilizationModeAuto;
+        }
+    }
+
     [captureSession commitConfiguration];
     NSLog(@"Starting capture session");
     [captureSession startRunning];
@@ -1036,6 +1046,8 @@
         }
     }
 }
+
+
 
 
 - (void)onStartRecordVideo {
