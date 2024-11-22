@@ -3,6 +3,7 @@
 #import <Cordova/CDVInvokedUrlCommand.h>
 #import <GLKit/GLKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import <AVKit/AVKit.h>
 #import "CameraPreview.h"
 
 #define TMP_IMAGE_PREFIX @"cpcp_capture_"
@@ -804,8 +805,14 @@
 
 - (NSString*)getTempDirectoryPath
 {
-  NSString* tmpPath = [NSTemporaryDirectory()stringByStandardizingPath];
-  return tmpPath;
+//  NSString* tmpPath = [NSTemporaryDirectory()stringByStandardizingPath];
+//  return tmpPath;
+  NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+  
+  NSLog(@"getTempDirectoryPath: %@", documentsDirectory);
+  
+  
+  return documentsDirectory;
 }
 
 - (NSString*)getTempFilePath:(NSString*)extension
@@ -819,6 +826,9 @@
     do {
         filePath = [NSString stringWithFormat:@"%@/%@%04d.%@", tmpPath, TMP_IMAGE_PREFIX, i++, extension];
     } while ([fileMgr fileExistsAtPath:filePath]);
+  
+  
+  NSLog(@"getTempFilePath: %@", filePath);
 
     return filePath;
 }
@@ -874,7 +884,7 @@
             return;
         }
 
-        self.videoFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"videoTmp"];
+        self.videoFilePath = [self.getTempDirectoryPath stringByAppendingPathComponent:@"videoTmp"];
         self.startRecordVideoCallbackContext = command;
 
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -1028,11 +1038,11 @@
     // Start recording to file
     NSURL *outputFileURL = [NSURL fileURLWithPath:filePath];
     NSError *fileError = nil;
-    if (![outputFileURL checkResourceIsReachableAndReturnError:&fileError]) {
-        NSLog(@"File path not reachable: %@", fileError.localizedDescription);
-    } else {
-        NSLog(@"File path is reachable: %@", outputFileURL.path);
-    }
+//    if (![outputFileURL checkResourceIsReachableAndReturnError:&fileError]) {
+//        NSLog(@"File path not reachable: %@", fileError.localizedDescription);
+//    } else {
+//        NSLog(@"File path is reachable: %@", outputFileURL.path);
+//    }
 
     @try {
         [self.movieFileOutput startRecordingToOutputFileURL:outputFileURL recordingDelegate:self];
@@ -1102,10 +1112,42 @@
 - (void)onStopRecordVideo:(NSString *)filePath {
     NSLog(@"onStopRecordVideo success");
     NSLog(@"Video file path: %@", filePath);
+  
+  
+//  AVURLAsset *avUrl = [AVURLAsset assetWithURL:filePath];
+//  CMTime time = [avUrl duration];
+//  int seconds = ceil(time.value/time.timescale);
+//  
+//  NSLog(@"onStopRecordVideo Video seconds: %@", seconds);
+  
+  
+  // Call the playRecordedVideo method
+  [self playRecordedVideo:filePath];
 
+    //filepath
     CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:filePath];
     [result setKeepCallbackAsBool:NO];
     [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
+  
+  unsigned long long fileSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil] fileSize];
+  NSLog(@"onStopRecordVideo success fileSize %d", fileSize);
+  
+
+
+  
+//      if (videoData) {
+//          NSString *base64EncodedString = [videoData base64EncodedStringWithOptions:0];
+//          CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:base64EncodedString];
+//          [result setKeepCallbackAsBool:NO];
+//          [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
+//          self.stopRecordVideoCallbackContext = nil;  // Clear the callback context after use
+//      } else {
+//          CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Failed to read video file"];
+//          [result setKeepCallbackAsBool:NO];
+//          [self.commandDelegate sendPluginResult:result callbackId:self.stopRecordVideoCallbackContext.callbackId];
+//      }
+  
+  
 }
 
 - (void)onStopRecordVideoError:(NSString *)errorMessage {
@@ -1174,9 +1216,56 @@
 }
 
 
+- (void)playRecordedVideo:(NSString *)videoFilePath {
+    NSURL *videoURL = [NSURL fileURLWithPath:videoFilePath];
+    self.player = [AVPlayer playerWithURL:videoURL];
+    self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
+    
+    // Set the frame for the player layer
+    self.playerLayer.frame = self.viewController.view.bounds; // Adjust the frame as needed
+    self.playerLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+
+    // Add the player layer to the view
+    [self.viewController.view.layer addSublayer:self.playerLayer];
+    
+    // Add observer to loop the video
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(playerItemDidReachEnd:)
+                                                 name:AVPlayerItemDidPlayToEndTimeNotification
+                                               object:self.player.currentItem];
+    
+    // Start playing the video
+    [self.player play];
+}
+
+// Method to handle the video ending and restarting
+- (void)playerItemDidReachEnd:(NSNotification *)notification {
+    AVPlayerItem *playerItem = [notification object];
+    [playerItem seekToTime:kCMTimeZero completionHandler:^(BOOL finished) {
+        [self.player play];
+    }];
+}
 
 
+- (void)removeVideoPlayer {
+    [self.player pause]; // Pause the player to stop the video
+    [self.playerLayer removeFromSuperlayer]; // Remove the player layer from the view
+    
+    // Clean up
+    self.player = nil;
+    self.playerLayer = nil;
+}
 
+
+- (void)finishRecordVideo:(CDVInvokedUrlCommand*)command {
+    NSLog(@"Attempting to finish recording");
+
+    
+  [self removeVideoPlayer];
+
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
 
 
 

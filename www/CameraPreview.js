@@ -47,17 +47,17 @@ CameraPreview.startCamera = function(options, onSuccess, onError) {
   options.storeToFile = options.storeToFile || false;
 
   exec(onSuccess, onError, PLUGIN_NAME, "startCamera", [
-    options.x, 
-    options.y, 
-    options.width, 
-    options.height, 
-    options.camera, 
-    options.tapPhoto, 
-    options.previewDrag, 
-    options.toBack, 
-    options.alpha, 
-    options.tapFocus, 
-    options.disableExifHeaderStripping, 
+    options.x,
+    options.y,
+    options.width,
+    options.height,
+    options.camera,
+    options.tapPhoto,
+    options.previewDrag,
+    options.toBack,
+    options.alpha,
+    options.tapFocus,
+    options.disableExifHeaderStripping,
     options.storeToFile
   ]);
 };
@@ -275,6 +275,10 @@ CameraPreview.startRecordVideo = function (opts, onSuccess, onError) {
 
 CameraPreview.stopRecordVideo = function (onSuccess, onError) {
   exec(onSuccess, onError, PLUGIN_NAME, "stopRecordVideo");
+};
+
+CameraPreview.finishRecordVideo = function (onSuccess, onError) {
+  exec(onSuccess, onError, PLUGIN_NAME, "finishRecordVideo");
 };
 
 CameraPreview.FOCUS_MODE = {
