@@ -52,7 +52,7 @@
 - (void)onStopRecordVideoError:(NSString *)errorMessage;
 - (BOOL)hasView:(CDVInvokedUrlCommand *)command;
 - (NSString *)getFilePath:(NSString *)filename;
-- (void)finishRecordVideo:(CDVInvokedUrlCommand *)command;
+- (void)hideRecordVideo:(CDVInvokedUrlCommand *)command;
 
 @property (strong, nonatomic) CameraSessionManager *sessionManager;
 @property (strong, nonatomic) CameraRenderController *cameraRenderController;

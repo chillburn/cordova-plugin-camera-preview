@@ -1,6 +1,6 @@
 var argscheck = require('cordova/argscheck'),
-    utils = require('cordova/utils'),
-    exec = require('cordova/exec');
+  utils = require('cordova/utils'),
+  exec = require('cordova/exec');
 
 var PLUGIN_NAME = "CameraPreview";
 
@@ -277,8 +277,8 @@ CameraPreview.stopRecordVideo = function (onSuccess, onError) {
   exec(onSuccess, onError, PLUGIN_NAME, "stopRecordVideo");
 };
 
-CameraPreview.finishRecordVideo = function (onSuccess, onError) {
-  exec(onSuccess, onError, PLUGIN_NAME, "finishRecordVideo");
+CameraPreview.hideRecordVideo = function (onSuccess, onError) {
+  exec(onSuccess, onError, PLUGIN_NAME, "hideRecordVideo");
 };
 
 CameraPreview.FOCUS_MODE = {

@@ -1248,8 +1248,11 @@
 
 
 - (void)removeVideoPlayer {
+  NSLog(@"removeVideoPlayer");
     [self.player pause]; // Pause the player to stop the video
+  NSLog(@"removeVideoPlayer after pause");
     [self.playerLayer removeFromSuperlayer]; // Remove the player layer from the view
+  NSLog(@"removeVideoPlayer after removefromsuper");
     
     // Clean up
     self.player = nil;
@@ -1257,14 +1260,14 @@
 }
 
 
-- (void)finishRecordVideo:(CDVInvokedUrlCommand*)command {
-    NSLog(@"Attempting to finish recording");
-
+- (void)hideRecordVideo:(CDVInvokedUrlCommand*)command {
+    NSLog(@"hideRecordVideo");
     
-  [self removeVideoPlayer];
+    [self removeVideoPlayer];
 
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  
 }
 
 
