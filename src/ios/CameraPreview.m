@@ -92,6 +92,7 @@
         [self.sessionManager setupSession:defaultCamera completion:^(BOOL started) {
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
         }];
+      
     } else {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid number of parameters"];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];

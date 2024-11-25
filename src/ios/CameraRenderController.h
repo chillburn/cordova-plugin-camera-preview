@@ -23,7 +23,7 @@
   CVOpenGLESTextureCacheRef _videoTextureCache;
   CVOpenGLESTextureRef _lumaTexture;
 }
-
+@property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
 @property (nonatomic) CameraSessionManager *sessionManager;
 @property (nonatomic) CIContext *ciContext;
 @property (nonatomic) CIImage *latestFrame;

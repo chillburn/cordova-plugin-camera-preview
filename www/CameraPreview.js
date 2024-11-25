@@ -277,7 +277,7 @@ CameraPreview.stopRecordVideo = function (onSuccess, onError) {
   exec(onSuccess, onError, PLUGIN_NAME, "stopRecordVideo");
 };
 
-CameraPreview.hideRecordVideo = function (onSuccess, onError) {
+CameraPreview.hideRecordVideo = function (onSuccess, onError)  {
   exec(onSuccess, onError, PLUGIN_NAME, "hideRecordVideo");
 };
 
